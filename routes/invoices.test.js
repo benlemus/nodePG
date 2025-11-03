@@ -1,4 +1,4 @@
-process.env.NODE_ENV === "test";
+process.env.NODE_ENV = "test";
 
 const request = require("supertest");
 const app = require("../app");
@@ -9,11 +9,11 @@ let testInvoice;
 
 beforeEach(async () => {
   const company = await db.query(
-    `INSERT INTO companies (code, name, description) VALUES ('app','Apple', 'the company that makes iPhone') RETURNING code,name,description`
+    `INSERT INTO companies (code, name, description) VALUES ('apple','Apple', 'the company that makes iPhone') RETURNING code,name,description`
   );
 
   const invoice = await db.query(
-    `INSERT INTO invoices (comp_code, amt) VALUES ('app', 200) RETURNING id, comp_code, amt, paid, add_date, paid_date`
+    `INSERT INTO invoices (comp_code, amt) VALUES ('apple', 200) RETURNING id, comp_code, amt, paid, add_date, paid_date`
   );
 
   testCompany = company.rows[0];
@@ -76,10 +76,11 @@ describe("PUT /invocies", () => {
   test("Updates invoice amt by id.", async () => {
     const res = await request(app)
       .put(`/invoices/${testInvoice.id}`)
-      .send({ amt: 1000 });
+      .send({ amt: 1000, paid: true });
 
     expect(res.statusCode).toBe(200);
     expect(res.body.invoice.amt).toEqual(1000);
+    expect(res.body.invoice.paid).toEqual(true);
   });
 
   test("Rsponds with 404 for invalid id.", async () => {

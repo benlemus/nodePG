@@ -1,4 +1,4 @@
-process.env.NODE_ENV === "test";
+process.env.NODE_ENV = "test";
 
 const request = require("supertest");
 const app = require("../app");
@@ -8,7 +8,7 @@ let testCompany;
 
 beforeEach(async () => {
   const result = await db.query(
-    `INSERT INTO companies (code, name, description) VALUES ('app','Apple', 'the company that makes iPhone') RETURNING code,name,description`
+    `INSERT INTO companies (code, name, description) VALUES ('apple','Apple', 'the company that makes iPhone') RETURNING code,name,description`
   );
 
   testCompany = result.rows[0];
@@ -36,7 +36,15 @@ describe("GET /companies/:code", () => {
     const res = await request(app).get(`/companies/${testCompany.code}`);
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ company: testCompany, invoices: [] });
+    expect(res.body).toEqual({
+      company: {
+        code: testCompany.code,
+        name: testCompany.name,
+        description: testCompany.description,
+        industries: [null],
+      },
+      invoices: [],
+    });
   });
 
   test("Rsponds with 404 for invalid code.", async () => {
@@ -49,14 +57,19 @@ describe("GET /companies/:code", () => {
 describe("POST /companies", () => {
   test("Creates new company.", async () => {
     const newCompany = {
-      code: "goo",
       name: "google",
       description: "that website you can search stuff on",
     };
     const res = await request(app).post(`/companies`).send(newCompany);
 
     expect(res.statusCode).toBe(201);
-    expect(res.body).toEqual({ company: newCompany });
+    expect(res.body).toEqual({
+      company: {
+        code: "google",
+        name: "google",
+        description: "that website you can search stuff on",
+      },
+    });
   });
 
   test("Rsponds with 404 for invalid code.", async () => {

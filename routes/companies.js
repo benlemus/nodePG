@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const ExpressError = require("../expressError");
+const slugify = require("slugify");
 
 /** GET: GETS ALL COMPANIES */
 router.get("/", async (req, res, next) => {
@@ -18,13 +19,23 @@ router.get("/:code", async (req, res, next) => {
   try {
     const { code } = req.params;
 
-    const company = await db.query(
-      `SELECT code, name, description FROM companies WHERE code = $1`,
+    const results = await db.query(
+      `SELECT c.code, c.name, c.description, i.name AS industry
+        FROM companies AS c
+        LEFT JOIN industries_companies AS ic
+        ON c.code = ic.comp_code
+        LEFT JOIN industries AS i
+        ON ic.industry_code = i.code
+        WHERE c.code = $1`,
       [code]
     );
 
-    if (!company.rows[0])
+    if (!results.rows[0])
       throw new ExpressError(`Could not get company with code ${code}`, 404);
+
+    const { name, description } = results.rows[0];
+    const comp_code = results.rows[0].code;
+    const industries = results.rows.map((r) => r.industry);
 
     const invoices = await db.query(
       `SELECT id, amt, paid, add_date, paid_date FROM invoices WHERE comp_code = $1`,
@@ -32,7 +43,12 @@ router.get("/:code", async (req, res, next) => {
     );
 
     return res.json({
-      company: company.rows[0],
+      company: {
+        code: comp_code,
+        name,
+        description,
+        industries,
+      },
       invoices: invoices.rows,
     });
   } catch (e) {
@@ -48,7 +64,8 @@ router.get("/:code", async (req, res, next) => {
 /** POST: MAKE NEW COMPANY */
 router.post("/", async (req, res, next) => {
   try {
-    const { code, name, description } = req.body;
+    const { name, description } = req.body;
+    const code = slugify(name, { lower: true, remove: /[#!]/g, strict: true });
     const result = await db.query(
       `INSERT INTO companies (code, name, description) VALUES ($1, $2, $3) RETURNING *`,
       [code, name, description]
