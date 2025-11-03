@@ -15,15 +15,15 @@ router.get("/", async (req, res, next) => {
 
 /** GET: GETS ONE INVOICE BY ID */
 router.get("/:id", async (req, res, next) => {
-  const { id } = req.params;
   try {
+    const { id } = req.params;
     const result = await db.query(
       `SELECT invoices.id, invoices.amt, invoices.paid, invoices.add_date, invoices.paid_date, companies.code AS company_code,companies.name AS company_name, companies.description AS company_description FROM invoices JOIN companies ON invoices.comp_code = companies.code WHERE invoices.id = $1`,
       [id]
     );
     const invoice = result.rows[0];
 
-    return res.status(201).json({
+    return res.json({
       invoice: {
         id: invoice.id,
         amt: invoice.amt,
@@ -38,7 +38,9 @@ router.get("/:id", async (req, res, next) => {
       },
     });
   } catch (e) {
-    return next(new ExpressError(`Could not get invoice with id ${id}`, 404));
+    return next(
+      new ExpressError(`Could not get invoice with id ${req.params.id}`, 404)
+    );
   }
 });
 
@@ -65,30 +67,41 @@ router.post("/", async (req, res, next) => {
 
 /** PUT: EDITS EXISTING INVOICE */
 router.put("/:id", async (req, res, next) => {
-  const { id } = req.params;
   try {
+    const { id } = req.params;
     const { amt } = req.body;
     const result = await db.query(
       `UPDATE invoices SET amt=$2 WHERE id=$1 RETURNING *`,
       [id, amt]
     );
-    return res.json({ invoices: result.rows[0] });
+    return res.json({ invoice: result.rows[0] });
   } catch (e) {
     return next(
-      new ExpressError(`Could not edit invoices with id: ${id}`, 404)
+      new ExpressError(`Could not edit invoices with id: ${req.params.id}`, 404)
     );
   }
 });
 
 /** DELETE: DELETES A INVOICE */
 router.delete("/:id", async (req, res, next) => {
-  const { id } = req.params;
   try {
-    const result = await db.query(`DELETE FROM invoices WHERE id=$1`, [id]);
+    const { id } = req.params;
+    const result = await db.query(
+      `DELETE FROM invoices WHERE id=$1 RETURNING id`,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      throw new ExpressError(`Invoice with id ${id} not found`, 404);
+    }
+
     return res.json({ status: "deleted" });
   } catch (e) {
     return next(
-      new ExpressError(`Could not delete company with id: ${id}`, 404)
+      new ExpressError(
+        `Could not delete company with id: ${req.params.id}`,
+        404
+      )
     );
   }
 });

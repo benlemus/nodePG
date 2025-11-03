@@ -37,20 +37,23 @@ router.get("/:code", async (req, res, next) => {
     });
   } catch (e) {
     return next(
-      new ExpressError(`Could not get company with code ${code}`, 404)
+      new ExpressError(
+        `Could not get company with code ${req.params.code}`,
+        404
+      )
     );
   }
 });
 
 /** POST: MAKE NEW COMPANY */
 router.post("/", async (req, res, next) => {
-  const { code, name, description } = req.body;
   try {
+    const { code, name, description } = req.body;
     const result = await db.query(
       `INSERT INTO companies (code, name, description) VALUES ($1, $2, $3) RETURNING *`,
       [code, name, description]
     );
-    return res.json({ company: result.rows[0] });
+    return res.status(201).json({ company: result.rows[0] });
   } catch (e) {
     return next(new ExpressError(`Could not create new company`, 404));
   }
@@ -68,7 +71,10 @@ router.put("/:code", async (req, res, next) => {
     return res.json({ company: result.rows[0] });
   } catch (e) {
     return next(
-      new ExpressError(`Could not edit company with code: ${code}`, 404)
+      new ExpressError(
+        `Could not edit company with code: ${req.params.code}`,
+        404
+      )
     );
   }
 });
@@ -77,15 +83,19 @@ router.put("/:code", async (req, res, next) => {
 router.delete("/:code", async (req, res, next) => {
   try {
     const { code } = req.params;
-    const result = await db.query(`DELETE FROM companies WHERE code=$1`, [
-      code,
-    ]);
+
+    const result = await db.query(
+      `DELETE FROM companies WHERE code = $1 RETURNING code`,
+      [code]
+    );
+
+    if (result.rowCount === 0) {
+      throw new ExpressError(`Company with code ${code} not found`, 404);
+    }
 
     return res.json({ status: "deleted" });
-  } catch (e) {
-    return next(
-      new ExpressError(`Could not delete company with code: ${code}`, 404)
-    );
+  } catch (err) {
+    return next(err);
   }
 });
 

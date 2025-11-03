@@ -15,7 +15,7 @@ app.use("/invoices", invoiceRoutes);
 
 /** 404 handler */
 
-app.use(function (req, res, next) {
+app.use((req, res, next) => {
   const err = new ExpressError("Not Found", 404);
   return next(err);
 });
@@ -27,7 +27,6 @@ app.use((err, req, res, next) => {
 
   return res.json({
     error: err,
-    message: err.message,
   });
 });
 
